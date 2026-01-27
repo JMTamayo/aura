@@ -20,6 +20,12 @@ def make_a_question_to_aura(
 ) -> AgentResponse:
     """
     Interact with Aura, the agent, wich helps you to manage your ecosystem by solving questions in natural language.
+
+    Arguments:
+        - request [AgentRequest]: The request containing the question to be answered.
+
+    Returns:
+        AgentResponse: The response containing the answer to the question..
     """
 
     return AgentResponse(answer="TODO")

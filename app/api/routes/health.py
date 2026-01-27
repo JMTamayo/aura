@@ -15,6 +15,12 @@ def verify_the_server_status() -> Response:
     """
     Indicates whether the server is running and ready to accept requests.
     If it is not running, an error will be returned.
+
+    Arguments:
+        None: The function does not take any arguments.
+
+    Returns:
+        Response: The response indicating the server status.
     """
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
