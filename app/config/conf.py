@@ -26,7 +26,7 @@ _pyproject = PyProjectConfig()
 
 class Config(BaseSettings):
     """
-    Configures the required configurations for the API.
+    Configures the required settings for the API.
     """
 
     API_NAME: str = _pyproject.PROJECT_NAME
