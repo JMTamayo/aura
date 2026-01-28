@@ -6,12 +6,12 @@ class AgentRequest(BaseModel):
     Represents a request to the agent, which contains the question to be answered in natural language.
     """
 
-    question: str
+    request: str
 
 
 class AgentResponse(BaseModel):
     """
-    Represents a response from the agent, which contains the answer to the question in natural language.
+    Represents a response from the agent, which contains the response to the request in natural language.
     """
 
-    answer: str
+    response: str
