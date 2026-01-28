@@ -5,9 +5,9 @@ from app.config.conf import CONFIG
 
 
 app: FastAPI = FastAPI(
-    title=CONFIG.API_NAME,
-    description=CONFIG.API_DESCRIPTION,
-    version=CONFIG.API_VERSION,
+    title=CONFIG.SERVER_API_NAME,
+    description=CONFIG.SERVER_API_DESCRIPTION,
+    version=CONFIG.SERVER_API_VERSION,
 )
 
 app.include_router(server_router)
