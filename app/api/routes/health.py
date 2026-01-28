@@ -13,8 +13,7 @@ health_router: APIRouter = APIRouter(
 )
 def verify_the_server_status() -> Response:
     """
-    Indicates whether the server is running and ready to accept requests.
-    If it is not running, an error will be returned.
+    Indicates whether the server is running and ready to accept requests. If it is not running, an error will be returned.
     """
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

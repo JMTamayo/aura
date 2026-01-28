@@ -29,12 +29,17 @@ class Config(BaseSettings):
     Configures the required settings for the API.
     """
 
-    API_NAME: str = _pyproject.PROJECT_NAME
-    API_DESCRIPTION: str = _pyproject.PROJECT_DESCRIPTION
-    API_VERSION: str = _pyproject.PROJECT_VERSION
+    SERVER_API_NAME: str = _pyproject.PROJECT_NAME
+    SERVER_API_DESCRIPTION: str = _pyproject.PROJECT_DESCRIPTION
+    SERVER_API_VERSION: str = _pyproject.PROJECT_VERSION
 
-    API_KEY_NAME: str
-    API_KEY_VALUE_HASHED: SecretStr
+    SERVER_API_KEY_NAME: str
+    SERVER_API_KEY_VALUE_HASHED: SecretStr
+
+    LLM_PROVIDER: str
+    LLM_API_KEY: SecretStr
+    LLM_MODEL: str
+    LLM_TEMPERATURE: float
 
 
 CONFIG: Config = Config()
