@@ -19,4 +19,5 @@ dependencies = [
 dev = [
     "mypy>=1.19.1",
     "ruff>=0.14.14",
+    "isort>=7.0.0",
 ]

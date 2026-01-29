@@ -1,12 +1,11 @@
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, Depends
-from fastapi import HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from app.models.agent import AgentRequest, AgentError
-from app.domain.agent import Aura
 from app.api.security.api_key import get_api_key
+from app.domain.agent import Aura
+from app.models.agent import AgentError, AgentRequest
 
 aura: Aura = Aura()
 
@@ -47,6 +46,7 @@ async def ask(
                 "Connection": "keep-alive",
             },
         )
+        
     except Exception as e:
         print(e)
         raise HTTPException(
