@@ -1,3 +1,5 @@
+import json
+
 from pydantic import BaseModel
 
 
@@ -14,15 +16,6 @@ class AgentResponse(BaseModel):
     Represents a response from the agent, which contains the response to the request in natural language.
     """
 
-    response: str
-
-
-class AgentStreamResponse(BaseModel):
-    """
-    Represents a stream response from the agent, which contains the response to the request in natural language.
-
-    """
-
     type: str
     response: str
 
@@ -30,18 +23,24 @@ class AgentStreamResponse(BaseModel):
         """
         Convert the stream response to a data string.
         """
+
         return f"data: {self.model_dump_json()}\n\n"
 
 
-class AgentStreamError(BaseModel):
+class AgentError(Exception):
     """
-    Represents an error in the stream response from the agent.
+    Represents an error in the response from the agent.
     """
 
     detail: str
+
+    def __init__(self, detail: str):
+        self.detail = detail
 
     def to_stream_response_data(self) -> str:
         """
         Convert the stream error to a data string.
         """
-        return f"data: {self.model_dump_json()}\n\n"
+
+        obj = {"detail": self.detail}
+        return f"data: {json.dumps(obj)}\n\n"

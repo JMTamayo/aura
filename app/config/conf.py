@@ -1,7 +1,8 @@
-from pydantic_settings import BaseSettings
-from pydantic import SecretStr
-from pathlib import Path
 import tomllib
+from pathlib import Path
+
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings
 
 
 class PyProjectConfig:

@@ -1,9 +1,8 @@
-from fastapi.security import APIKeyHeader
-from fastapi import HTTPException, Security, status
 import bcrypt
+from fastapi import HTTPException, Security, status
+from fastapi.security import APIKeyHeader
 
 from app.config.conf import CONFIG
-
 
 api_key_header: APIKeyHeader = APIKeyHeader(
     name=CONFIG.SERVER_API_KEY_NAME, auto_error=True
