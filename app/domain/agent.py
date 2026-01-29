@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
@@ -8,7 +8,7 @@ from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 
 from app.models.prompts import PromptBuilder
-from app.models.agent import AgentRequest, AgentResponse
+from app.models.agent import AgentRequest, AgentResponse, AgentStreamResponse
 from app.config.conf import CONFIG
 
 
@@ -140,10 +140,37 @@ class Aura:
         }
 
         try:
-            agent_response: dict[str, Any] = self.get_workflow().invoke(state)
-            return AgentResponse(response=agent_response["messages"][-1].content)
+            response: dict[str, Any] = self.get_workflow().invoke(state)
+            return AgentResponse(response=response["messages"][-1].content)
 
         except Exception:
             raise Exception(
                 "A server error occurred while answering the question. Contact the administrator."
+            )
+
+    async def stream(
+        self, request: AgentRequest
+    ) -> AsyncGenerator[AgentStreamResponse, None]:
+        """
+        Stream the response from the agent.
+
+        Arguments:
+            request [AgentRequest]: The request containing the question to be answered.
+
+        Returns:
+            AsyncGenerator[AgentResponse, None]: The response from the agent as an asynchronous generator.
+        """
+
+        state = {
+            "messages": self.get_prompt_builder().user_query_prompt(request.request),
+        }
+
+        try:
+            async for chunk in self.get_workflow().astream(state, stream_mode="values"):
+                msg = chunk["messages"][-1]
+                yield AgentStreamResponse(type=msg.type, response=msg.content)
+
+        except Exception:
+            raise Exception(
+                "A server error occurred while streaming the response. Contact the administrator."
             )
