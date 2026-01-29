@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any, AsyncGenerator
+from typing import AsyncGenerator
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
@@ -8,7 +8,7 @@ from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 
 from app.models.prompts import PromptBuilder
-from app.models.agent import AgentRequest, AgentResponse, AgentStreamResponse
+from app.models.agent import AgentRequest, AgentResponse, AgentError
 from app.config.conf import CONFIG
 
 
@@ -103,7 +103,7 @@ class Aura:
 
         return self.workflow
 
-    def agent_node(self, state: AgentState) -> AgentState:
+    async def agent_node(self, state: AgentState) -> AgentState:
         """
         The agent node of the workflow, when the LLM thinks to answer the user's query.
 
@@ -114,7 +114,7 @@ class Aura:
             AgentState: The state of the agent.
         """
 
-        response: AIMessage = self.get_llm().invoke(
+        response: AIMessage = await self.get_llm().ainvoke(
             self.get_prompt_builder().user_query_prompt(
                 str(state["messages"][-1].content),
             )
@@ -124,33 +124,9 @@ class Aura:
 
         return state
 
-    def ask(self, request: AgentRequest) -> AgentResponse:
-        """
-        Ask a question to the agent.
-
-        Arguments:
-            request [AgentRequest]: The request containing the question to be answered.
-
-        Returns:
-            AgentResponse: The response from the agent.
-        """
-
-        state = {
-            "messages": self.get_prompt_builder().user_query_prompt(request.request),
-        }
-
-        try:
-            response: dict[str, Any] = self.get_workflow().invoke(state)
-            return AgentResponse(response=response["messages"][-1].content)
-
-        except Exception:
-            raise Exception(
-                "A server error occurred while answering the question. Contact the administrator."
-            )
-
     async def stream(
         self, request: AgentRequest
-    ) -> AsyncGenerator[AgentStreamResponse, None]:
+    ) -> AsyncGenerator[AgentResponse, None]:
         """
         Stream the response from the agent.
 
@@ -168,9 +144,7 @@ class Aura:
         try:
             async for chunk in self.get_workflow().astream(state, stream_mode="values"):
                 msg = chunk["messages"][-1]
-                yield AgentStreamResponse(type=msg.type, response=msg.content)
+                yield AgentResponse(type=msg.type, response=msg.content)
 
-        except Exception:
-            raise Exception(
-                "A server error occurred while streaming the response. Contact the administrator."
-            )
+        except Exception as e:
+            raise AgentError(detail=str(e)) from e
