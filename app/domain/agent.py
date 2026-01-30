@@ -6,11 +6,19 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Command
 
 from app.config.conf import CONFIG
-from app.models.agent import AgentError, AgentRequest, AgentResponse
+from app.models.agent import (
+    ENTITY_SYSTEM,
+    AgentMessage,
+    AgentRequest,
+    AgentResponse,
+    AgentResponseType,
+)
 from app.models.prompts import PromptBuilder
 
+GREETING_PROMPT_FILE_PATH = "app/domain/prompts/greeting.md"
 SYSTEM_PROMPT_FILE_PATH = "app/domain/prompts/system.md"
 
 
@@ -19,7 +27,7 @@ class AgentState(MessagesState):
     Represents the state of the agent to be used in the workflow.
     """
 
-    pass
+    user_query: str
 
 
 class Nodes(StrEnum):
@@ -27,6 +35,7 @@ class Nodes(StrEnum):
     Represents the implemented nodes of the workflow.
     """
 
+    GREETING = "Greet the user"
     AGENT = "Aura agent"
 
 
@@ -40,7 +49,9 @@ class Aura:
     workflow: CompiledStateGraph
 
     def __init__(self):
-        prompt_builder = PromptBuilder(SYSTEM_PROMPT_FILE_PATH)
+        prompt_builder = PromptBuilder(
+            GREETING_PROMPT_FILE_PATH, SYSTEM_PROMPT_FILE_PATH
+        )
 
         llm = init_chat_model(
             model=CONFIG.LLM_MODEL,
@@ -49,15 +60,15 @@ class Aura:
             api_key=CONFIG.LLM_API_KEY.get_secret_value(),
         )
 
-        graph_builder = StateGraph(AgentState)
-
-        graph_builder.add_node(Nodes.AGENT, self.agent_node)
-
-        graph_builder.add_edge(Nodes.AGENT, END)
-
-        graph_builder.set_entry_point(Nodes.AGENT)
-
-        workflow = graph_builder.compile()
+        workflow = (
+            StateGraph(AgentState)
+            .add_node(Nodes.GREETING, self.greeting_node)
+            .add_node(Nodes.AGENT, self.agent_node)
+            .add_edge(Nodes.GREETING, Nodes.AGENT)
+            .add_edge(Nodes.AGENT, END)
+            .set_entry_point(Nodes.GREETING)
+            .compile()
+        )
 
         self.prompt_builder = prompt_builder
         self.llm = llm
@@ -102,7 +113,26 @@ class Aura:
 
         return self.workflow
 
-    async def agent_node(self, state: AgentState) -> AgentState:
+    async def greeting_node(self, state: AgentState) -> Command:
+        """
+        The greeting node of the workflow, when the LLM starts to answer the user's query.
+
+        Arguments:
+            state [AgentState]: The state of the agent.
+
+        Returns:
+            Command[Literal[Nodes.AGENT]]: The command to the next node.
+        """
+
+        response: AIMessage = await self.get_llm().ainvoke(
+            self.get_prompt_builder().greeting_prompt(
+                state["user_query"],
+            )
+        )
+
+        return Command(goto=Nodes.AGENT, update={"messages": [response]})
+
+    async def agent_node(self, state: AgentState) -> Command:
         """
         The agent node of the workflow, when the LLM thinks to answer the user's query.
 
@@ -115,13 +145,11 @@ class Aura:
 
         response: AIMessage = await self.get_llm().ainvoke(
             self.get_prompt_builder().user_query_prompt(
-                str(state["messages"][-1].content),
+                state["user_query"],
             )
         )
 
-        state["messages"].append(response)
-
-        return state
+        return Command(goto=END, update={"messages": [response]})
 
     async def stream(
         self, request: AgentRequest
@@ -137,13 +165,26 @@ class Aura:
         """
 
         state = {
+            "user_query": request.request,
             "messages": self.get_prompt_builder().user_query_prompt(request.request),
         }
 
         try:
             async for chunk in self.get_workflow().astream(state, stream_mode="values"):
                 msg = chunk["messages"][-1]
-                yield AgentResponse(type=msg.type, response=msg.content)
+                yield AgentResponse(
+                    type=AgentResponseType.MESSAGE,
+                    detail=AgentMessage(
+                        entity=msg.type,
+                        message=msg.content,
+                    ),
+                )
 
         except Exception as e:
-            raise AgentError(detail=str(e)) from e
+            yield AgentResponse(
+                type=AgentResponseType.ERROR,
+                detail=AgentMessage(
+                    entity=ENTITY_SYSTEM,
+                    message=str(e),
+                ),
+            )

@@ -1,4 +1,4 @@
-import json
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -11,13 +11,34 @@ class AgentRequest(BaseModel):
     request: str
 
 
+class AgentResponseType(StrEnum):
+    """
+    Represents the type of response from the agent.
+    """
+
+    ERROR = "error"
+    MESSAGE = "message"
+
+
+ENTITY_SYSTEM: str = "system"
+
+
+class AgentMessage(BaseModel):
+    """
+    Represents a message from the agent, which contains the message to the user.
+    """
+
+    entity: str
+    message: str
+
+
 class AgentResponse(BaseModel):
     """
     Represents a response from the agent, which contains the response to the request in natural language.
     """
 
-    type: str
-    response: str
+    type: AgentResponseType
+    detail: AgentMessage
 
     def to_stream_response_data(self) -> str:
         """
@@ -25,22 +46,3 @@ class AgentResponse(BaseModel):
         """
 
         return f"data: {self.model_dump_json()}\n\n"
-
-
-class AgentError(Exception):
-    """
-    Represents an error in the response from the agent.
-    """
-
-    detail: str
-
-    def __init__(self, detail: str):
-        self.detail = detail
-
-    def to_stream_response_data(self) -> str:
-        """
-        Convert the stream error to a data string.
-        """
-
-        obj = {"detail": self.detail}
-        return f"data: {json.dumps(obj)}\n\n"
