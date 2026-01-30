@@ -5,7 +5,13 @@ from fastapi.responses import StreamingResponse
 
 from app.api.security.api_key import get_api_key
 from app.domain.agent import Aura
-from app.models.agent import AgentError, AgentRequest
+from app.models.agent import (
+    ENTITY_SYSTEM,
+    AgentMessage,
+    AgentRequest,
+    AgentResponse,
+    AgentResponseType,
+)
 
 aura: Aura = Aura()
 
@@ -31,13 +37,22 @@ async def ask(
             async for response in aura.stream(request):
                 yield response.to_stream_response_data()
 
-        except AgentError as e:
-            yield e.to_stream_response_data()
-
         except Exception as e:
-            yield AgentError(detail=str(e)).to_stream_response_data()
+            yield AgentResponse(
+                type=AgentResponseType.ERROR,
+                detail=AgentMessage(
+                    entity=ENTITY_SYSTEM,
+                    message=str(e),
+                ),
+            ).to_stream_response_data()
 
     try:
+        if request.request.strip() == "":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The request cannot be empty",
+            )
+
         return StreamingResponse(
             stream(),
             media_type="text/event-stream",
@@ -46,7 +61,7 @@ async def ask(
                 "Connection": "keep-alive",
             },
         )
-        
+
     except Exception as e:
         print(e)
         raise HTTPException(
