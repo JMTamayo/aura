@@ -21,6 +21,31 @@ agent_router: APIRouter = APIRouter(
 )
 
 
+async def stream(request: AgentRequest) -> AsyncGenerator[str, None]:
+    """
+    Stream the response from the agent.
+
+    Arguments:
+        request [AgentRequest]: The request containing the question to be answered.
+
+    Returns:
+        AsyncGenerator[str, None]: The response from the agent as an asynchronous generator.
+    """
+
+    try:
+        async for response in aura.stream(request):
+            yield response.to_stream_response_data()
+
+    except Exception as e:
+        yield AgentResponse(
+            type=AgentResponseType.ERROR,
+            detail=AgentMessage(
+                entity=ENTITY_SYSTEM,
+                message=str(e),
+            ),
+        ).to_stream_response_data()
+
+
 @agent_router.post(
     path="/",
     dependencies=[Depends(get_api_key)],
@@ -32,20 +57,6 @@ async def ask(
     Stream the response from the agent as Server-Sent Events (SSE). Each event is a JSON object.
     """
 
-    async def stream() -> AsyncGenerator[str, None]:
-        try:
-            async for response in aura.stream(request):
-                yield response.to_stream_response_data()
-
-        except Exception as e:
-            yield AgentResponse(
-                type=AgentResponseType.ERROR,
-                detail=AgentMessage(
-                    entity=ENTITY_SYSTEM,
-                    message=str(e),
-                ),
-            ).to_stream_response_data()
-
     try:
         if request.request.strip() == "":
             raise HTTPException(
@@ -54,7 +65,7 @@ async def ask(
             )
 
         return StreamingResponse(
-            stream(),
+            stream(request),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -63,7 +74,6 @@ async def ask(
         )
 
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
